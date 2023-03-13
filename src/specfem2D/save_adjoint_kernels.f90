@@ -70,6 +70,9 @@
     call save_kernels_strength_noise(sigma_kl)
   endif
 
+  ! add a flag and check it
+  call save_mask_source()
+
   end subroutine save_adjoint_kernels
 
 !
@@ -778,3 +781,46 @@
 
   end subroutine save_weights_kernel
 
+
+!
+!-------------------------------------------------------------------------------------------------
+!
+
+  subroutine save_mask_source()
+
+  use constants, only: CUSTOM_REAL,MAX_STRING_LEN,NGLLX,NGLLZ,OUTPUT_FILES
+
+  use specfem_par, only: ispec_selected_source,myrank,NSOURCES,nspec
+
+  implicit none
+
+  ! local parameters
+  character(len=MAX_STRING_LEN) :: fname
+  integer :: i,j,ier,i_source,ispec
+  real(kind=CUSTOM_REAL), dimension(:,:,:),allocatable :: mask_source
+
+  ! initialize array
+  allocate(mask_source(NGLLX,NGLLZ,nspec),stat=ier)
+  if (ier /= 0) call stop_the_code('Error allocating mask_source array')
+
+  ! define mask
+  mask_source(:,:,:) = 1.0_CUSTOM_REAL
+
+  do i_source = 1, NSOURCES
+    do j = 1, NGLLZ
+      do i = 1, NGLLX
+        ispec = ispec_selected_source(i_source)
+        mask_source(i,j,ispec) = 0._CUSTOM_REAL
+      enddo
+    enddo
+  enddo
+
+  ! save mask
+  write(fname,'(a,i6.6,a)') 'proc',myrank,'_mask_source.bin'
+  open(unit=145,file=trim(OUTPUT_FILES)//fname,status='unknown',action='write', &
+       form='unformatted',iostat=ier)
+  if (ier /= 0) call stop_the_code('Error writing mask_source to disk')
+  write(145) mask_source
+  close(145)
+
+  end subroutine save_mask_source
