@@ -71,7 +71,11 @@
   endif
 
   ! add a flag and check it
-  call save_mask_source()
+  if (NOISE_TOMOGRAPHY == 3) then
+    call save_mask_receiver()
+  else
+    call save_mask_source()
+  endif
 
   end subroutine save_adjoint_kernels
 
@@ -824,3 +828,48 @@
   close(145)
 
   end subroutine save_mask_source
+
+
+!
+!-------------------------------------------------------------------------------------------------
+!
+
+  subroutine save_mask_receiver()
+  ! useful for noise simulations as the receivers are the sources
+
+  use constants, only: CUSTOM_REAL,MAX_STRING_LEN,NGLLX,NGLLZ,OUTPUT_FILES
+
+  use specfem_par, only: ispec_selected_rec_loc,myrank,nspec,nrecloc
+
+  implicit none
+
+  ! local parameters
+  character(len=MAX_STRING_LEN) :: fname
+  integer :: i,j,ier,irec,ispec
+  real(kind=CUSTOM_REAL), dimension(:,:,:),allocatable :: mask_receiver
+
+  ! initialize array
+  allocate(mask_receiver(NGLLX,NGLLZ,nspec),stat=ier)
+  if (ier /= 0) call stop_the_code('Error allocating mask_receiver array')
+
+  ! define mask
+  mask_receiver(:,:,:) = 1.0_CUSTOM_REAL
+
+  do irec = 1, nrecloc
+    ispec = ispec_selected_rec_loc(irec)
+    do j = 1, NGLLZ
+      do i = 1, NGLLX
+        mask_receiver(i,j,ispec) = 0._CUSTOM_REAL
+      enddo
+    enddo
+  enddo
+
+  ! save mask
+  write(fname,'(a,i6.6,a)') 'proc',myrank,'_mask_receiver.bin'
+  open(unit=145,file=trim(OUTPUT_FILES)//fname,status='unknown',action='write', &
+       form='unformatted',iostat=ier)
+  if (ier /= 0) call stop_the_code('Error writing mask_receiver to disk')
+  write(145) mask_receiver
+  close(145)
+
+  end subroutine save_mask_receiver
